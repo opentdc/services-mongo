@@ -24,6 +24,7 @@
 package org.opentdc.mongo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -36,6 +37,7 @@ import org.opentdc.service.exception.NotFoundException;
 import org.opentdc.service.exception.ValidationException;
 
 import com.mongodb.MongoClient;
+import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.FindIterable;
@@ -58,11 +60,12 @@ import static com.mongodb.client.model.Filters.*;
 public class AbstractMongodbServiceProvider<T> {
 	private static final Logger logger = Logger.getLogger(AbstractMongodbServiceProvider.class.getName());
 	private static String mongodbHost = null;
-	private static short mongodbPort = 0;
+	private static String mongodbName = null;
+	private static String mongodbUser = null;
+	private static String mongodbPwd = null;  		// Password of dbUser in mongoDB
 	private static MongoClient mongoClient = null;  // represents a pool of connections for a database cluster
 	protected MongoCollection<Document> collection = null; // corresponds to a table
 	protected String collectionName = null;
-	private static final String DB_NAME = "opentdc_v1";
 	
 	/**
 	 * Constructor
@@ -74,15 +77,20 @@ public class AbstractMongodbServiceProvider<T> {
 		// TODO: support multiple ServerAddresses for replica sets
 		mongodbHost = context.getInitParameter("mongodbHost"); 
 		if (mongodbHost == null || mongodbHost.isEmpty()) {
-			mongodbHost = "localhost";		// only for test environment
+			mongodbHost = "https://localhost:27017";		// only for test environment
 		}
-		String _port = context.getInitParameter("mongodbPort");
-		if (_port == null || _port.isEmpty()) {
-			mongodbPort = 27017;
-		} else {
-			mongodbPort = new Integer(_port).shortValue();
+		String _dbName = context.getInitParameter("mongodbName");
+		if (_dbName == null || _dbName.isEmpty()) {
+			mongodbName = "opentdc_v1";
 		}
-		logger.info("AbstractMongodbServiceProvider: mongodbHost=" + mongodbHost + ", mongodbPort=" + mongodbPort);
+		else {
+			mongodbName = _dbName;
+		}
+		mongodbUser = context.getInitParameter("mongodbUser");	// may be null !
+		mongodbPwd = context.getInitParameter("mongodbPwd");	// may be null !
+		logger.info("AbstractMongodbServiceProvider: mongodbHost=" + mongodbHost + 
+				", mongodbName=" + mongodbName +
+				", mongodbUser=" + mongodbUser);
 	}
 	
 	/**
@@ -92,14 +100,22 @@ public class AbstractMongodbServiceProvider<T> {
 	protected static void connect()
 			throws InternalServerErrorException 
 	{
+		ServerAddress _serverAddress = new ServerAddress(mongodbHost);
 		if (mongoClient != null) {
 			logger.warning("re-connecting to an already open mongoDB connection");
 		} else {
 			try {
-				// TODO: switch to secure mode with authentication
-				// MongoCredential _credential = MongoCredential.createCredential(userName, database, password);
-				// MongoClient _mongoClient = new MongoClient(new ServerAddress(mongodbHost, mongodbPort), Arrays.asList(_credential));
-				mongoClient = new MongoClient(new ServerAddress(mongodbHost, mongodbPort));
+				if (mongodbUser == null || mongodbUser.isEmpty() || 
+						mongodbPwd == null || mongodbPwd.isEmpty()) {
+					logger.warning("access to MongoDB is insecure");
+					mongoClient = new MongoClient(_serverAddress);
+				}
+				else {
+					MongoCredential _credential = 
+							MongoCredential.createCredential(mongodbUser, mongodbName, mongodbPwd.toCharArray());
+					mongoClient = 
+							new MongoClient(_serverAddress, Arrays.asList(_credential));		
+				}
 				// default WriteConcern.ACKNOWLEDGED
 				// optionally, choose another WriteConcern eg. _mongoClient.setWriteConcern(WriteConcern.JOURNALED);
 			}
@@ -130,7 +146,7 @@ public class AbstractMongodbServiceProvider<T> {
 			throw new InternalServerErrorException("trying to get collection <" + collectionName + "> from non-existing DB; please connect() first.");
 		}
 		try {
-			MongoDatabase _db = mongoClient.getDatabase(DB_NAME);
+			MongoDatabase _db = mongoClient.getDatabase(mongodbName);
 			collection = _db.getCollection(collectionName);
 			this.collectionName = collectionName;
 		}
