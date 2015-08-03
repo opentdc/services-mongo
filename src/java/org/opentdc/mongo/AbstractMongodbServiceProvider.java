@@ -166,7 +166,10 @@ public class AbstractMongodbServiceProvider<T> {
 	 */
 	protected List<Document> list(int position, int size) {
 		// TODO: queries are not yet supported
-		FindIterable<Document> _iterableResult = collection.find().skip(position).limit(size);
+		FindIterable<Document> _iterableResult = 
+				(size == 0)  ? 
+						collection.find().skip(position) : 
+						collection.find().skip(position).limit(size);
 		List<Document> _resultList = new ArrayList<Document>();
 		for (Document _doc : _iterableResult) {
 			_resultList.add(_doc);
@@ -195,29 +198,23 @@ public class AbstractMongodbServiceProvider<T> {
 	/**
 	 * Retrieve one single object based on its ID.
 	 * @param id the unique identificator of the object
-	 * @return the object found
-	 * @throws NotFoundException if no object with the given id was found
-	 * @throws InternalServerErrorException if there was a problem getting the object from mongodb
+	 * @return the object found or null if there was no such document
 	 */
 	protected Document readOne(
 			String id) 
-		throws NotFoundException, InternalServerErrorException
 	{
-		Document _result = null;
+		logger.info("readOne(" + id + ")");
+		Document _doc = null;
 		try {
-			// logger.info("readOne(" + id + ")");
-			_result = collection.find(eq("_id", new ObjectId(id))).first();
+			_doc = collection.find(eq("_id", new ObjectId(id))).first();
 		}
 		catch (Exception _ex) {
-			logger.info(_ex.getMessage());
-			logger.info(_ex.getStackTrace().toString());		
-			throw new InternalServerErrorException("could not find dbobject <" + id + ">");			
+			logger.warning(_ex.getMessage());
+			logger.warning(_ex.getStackTrace().toString());		
+			// logging the error, returning with null (ie not found)
+			// typically this is IllegalArgumentException: invalid hexadecimal representation of an ObjectId
 		}
-		if (_result == null) {
-			throw new NotFoundException("dbobject with id <" + id + "> was not found in collection " + collectionName + ".");
-		}
-		logger.info("readOne(" + id + ") -> " + _result.toJson());
-		return _result;
+		return _doc;
 	}
 	
 	/**
