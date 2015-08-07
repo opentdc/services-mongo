@@ -23,12 +23,14 @@
  */
 package org.opentdc.mongo;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -60,6 +62,7 @@ import static com.mongodb.client.model.Filters.*;
 public class AbstractMongodbServiceProvider<T> {
 	private static final Logger logger = Logger.getLogger(AbstractMongodbServiceProvider.class.getName());
 	private static String mongodbHost = null;
+	private static int mongodbPort = 27017;		// default mongodb port
 	private static String mongodbName = null;
 	private static String mongodbUser = null;
 	private static String mongodbPwd = null;  		// Password of dbUser in mongoDB
@@ -74,10 +77,15 @@ public class AbstractMongodbServiceProvider<T> {
 	public AbstractMongodbServiceProvider(
 		ServletContext context) 
 	{
-		// TODO: support multiple ServerAddresses for replica sets
+		// TODO: support multiple ServerAddresses for replica sets  host1;host2;host3
 		mongodbHost = context.getInitParameter("mongodbHost"); 
 		if (mongodbHost == null || mongodbHost.isEmpty()) {
-			mongodbHost = "https://localhost:27017";		// only for test environment
+			mongodbHost = "localhost";		// only for test environment
+		}
+		// TODO: support multiple ports for replica sets    port1;port2;port3
+		String _buf = context.getInitParameter("mongodbPort");
+		if (_buf != null && !_buf.isEmpty()) {
+			mongodbPort = new Integer(_buf).intValue();
 		}
 		String _dbName = context.getInitParameter("mongodbName");
 		if (_dbName == null || _dbName.isEmpty()) {
@@ -89,6 +97,7 @@ public class AbstractMongodbServiceProvider<T> {
 		mongodbUser = context.getInitParameter("mongodbUser");	// may be null !
 		mongodbPwd = context.getInitParameter("mongodbPwd");	// may be null !
 		logger.info("AbstractMongodbServiceProvider: mongodbHost=" + mongodbHost + 
+				", mongodbPort=" + mongodbPort + 
 				", mongodbName=" + mongodbName +
 				", mongodbUser=" + mongodbUser);
 	}
@@ -100,7 +109,7 @@ public class AbstractMongodbServiceProvider<T> {
 	protected static void connect()
 			throws InternalServerErrorException 
 	{
-		ServerAddress _serverAddress = new ServerAddress(mongodbHost);
+		ServerAddress _serverAddress = new ServerAddress(mongodbHost, mongodbPort);
 		if (mongoClient != null) {
 			logger.warning("re-connecting to an already open mongoDB connection");
 		} else {
@@ -263,6 +272,18 @@ public class AbstractMongodbServiceProvider<T> {
 		logger.info("deleteOne(" + id + ") -> OK");
 	}
 	
+	/**
+	 * @param request
+	 * @return
+	 */
+	protected String getPrincipal(HttpServletRequest request) {
+		Principal _principal = request.getUserPrincipal();
+		if (_principal == null) {
+			return "undefined";
+		} else {
+			return _principal.getName();
+		}
+	}
 	
 	/**
 	 * Disconnect the MongoDB.
@@ -275,15 +296,5 @@ public class AbstractMongodbServiceProvider<T> {
 			mongoClient.close();
 		}
 		logger.info("disconnect() -> OK");
-	}
-	
-	
-	/**
-	 * Retrieve the principal name of the current user.
-	 * @return the principal name
-	 */
-	protected String getPrincipal() 
-	{
-		return "DUMMY_USER";  // TODO: get principal from user session
 	}
 }
