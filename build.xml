@@ -13,7 +13,7 @@
 		<fileset dir="${build.dir}" includes="*.class" />
 		<fileset dir="../${java.build.platform}/services-generic/lib/" includes="*.jar" />
 		<fileset dir="../opt/google/${java.build.platform}/gson/lib/" includes="*.jar" />
-		<fileset dir="../opt/mongodb/${java.build.platform}/mongo-java-driver/lib/" includes="*.jar" />
+		<fileset dir="../opt/mongodb/${java.build.platform}/mongodb/lib/" includes="*.jar" />
 	</path>
 
 	<target name="javac" description="Compile java source">
