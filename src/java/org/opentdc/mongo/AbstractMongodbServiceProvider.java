@@ -23,14 +23,12 @@
  */
 package org.opentdc.mongo;
 
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
 
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -270,19 +268,6 @@ public class AbstractMongodbServiceProvider<T> {
 			throw new NotFoundException("dbobject with id <" + id + "> was not found in collection " + collectionName + ".");
 		}
 		logger.info("deleteOne(" + id + ") -> OK");
-	}
-	
-	/**
-	 * @param request
-	 * @return
-	 */
-	protected String getPrincipal(HttpServletRequest request) {
-		Principal _principal = request.getUserPrincipal();
-		if (_principal == null) {
-			return "undefined";
-		} else {
-			return _principal.getName();
-		}
 	}
 	
 	/**
